@@ -64,6 +64,8 @@ services:
     secrets:
       - cf_dns_api_token
       - basic_auth_credentials
+    labels:
+      - 'traefik.http.services.traefik.loadbalancer.server.port=8080'
 
   portainer:
     env_file: ".env"
