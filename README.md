@@ -60,6 +60,9 @@ Edit `.env` and set your domain and other configurations.
 docker-compose up -d
 ```
 
+6. Convert Portainer login to OAuth:
+[Gist](https://gist.github.com/573dave/4d37824fcea9e3d697bae2cd922769ea)
+
 ## Usage
 
 ### Accessing Services
