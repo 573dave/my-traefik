@@ -4,7 +4,7 @@ A secure, production-ready Docker stack featuring Traefik 3.3 as reverse proxy w
 
 ## Features
 
-- Traefik 3.3 reverse proxy
+- Traefik 3.3 reverse proxy with Dashboard
 - Automatic HTTPS with Cloudflare DNS challenge
 - Google OAuth authentication for all services
 - Portainer CE for container management
@@ -67,6 +67,7 @@ docker-compose up -d
 
 ### Accessing Services
 
+- Traefik Dashboard: https://traefik.yourdomain.com
 - Portainer: https://portainer.yourdomain.com
 
 ### Adding New Services
