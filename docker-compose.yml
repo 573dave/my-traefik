@@ -1,0 +1,123 @@
+services:
+  traefik:
+    env_file: ".env"
+    container_name: traefik
+    image: traefik:3.3
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - proxy
+    command:
+      - --global.checkNewVersion=false
+      - --global.sendAnonymousUsage=false
+      - --api=true
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --log=true
+      - --log.filePath=/logs/traefik.log
+      - --log.level=${LOG_LEVEL}
+      - --accessLog=true
+      - --accessLog.filePath=/logs/access.log
+      - --accessLog.bufferingSize=100
+      - --accessLog.filters.statusCodes=204-299,400-499,500-599
+      - --providers.docker=true
+      - --providers.docker.endpoint=unix://${DOCKER_SOCKET}
+      - --providers.docker.exposedByDefault=true
+      - --providers.docker.network=proxy
+      - --providers.docker.defaultRule=Host(`{{ index .Labels "com.docker.compose.service" }}.${DOMAIN}`)
+      - --entrypoints.websecure.http.middlewares=chain-oauth@file
+      - --entrypoints.websecure.http.tls=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.traefik.address=:8080
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
+      - --entrypoints.websecure.http.tls=true
+      - --entrypoints.websecure.http.tls.options=tls-opts@file
+      - --entrypoints.websecure.http.tls.certresolver=dns-cloudflare
+      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
+      - --providers.file.directory=/rules
+      - --providers.file.watch=true
+      - --certificatesResolvers.dns-cloudflare.acme.storage=/acme.json
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=${CLOUDFLARE_DNS1},${CLOUDFLARE_DNS2}
+      - --certificatesresolvers.dns-cloudflare.acme.email=${ACME_EMAIL}
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.service=api@internal"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ${DOCKER_SOCKET}:${DOCKER_SOCKET}:ro
+      - ./traefik/rules:/rules
+      - ./traefik/acme.json:/acme.json
+      - ./logs/traefik:/logs
+    environment:
+      - CF_DNS_API_TOKEN_FILE=/run/secrets/cf_dns_api_token
+      - HTPASSWD_FILE=/run/secrets/basic_auth_credentials
+    secrets:
+      - cf_dns_api_token
+      - basic_auth_credentials
+
+  portainer:
+    env_file: ".env"
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    depends_on:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - ${DOCKER_SOCKET}:${DOCKER_SOCKET}:ro
+      - ./appdata/portainer/data:/data
+    labels:
+      - 'traefik.http.services.portainer.loadbalancer.server.port=9000'
+
+  oauth:
+    container_name: oauth
+    image: thomseddon/traefik-forward-auth:latest
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - proxy
+    environment:
+      - CONFIG=/config
+      - COOKIE_DOMAIN=${DOMAIN}
+      - INSECURE_COOKIE=false
+      - AUTH_HOST=oauth.${DOMAIN}
+      - URL_PATH=/_oauth
+      - LOG_LEVEL=warn
+      - LOG_FORMAT=text
+      - LIFETIME=${COOKIE_LIFETIME}
+      - DEFAULT_ACTION=auth
+      - DEFAULT_PROVIDER=google
+    secrets:
+      - source: traefik_forward_auth
+        target: /config
+    labels:
+      - 'traefik.http.services.oauth.loadbalancer.server.port=4181'
+
+
+
+networks:
+  proxy:
+    name: proxy
+    driver: bridge
+
+secrets:
+  basic_auth_credentials:
+    file: ./secrets/basic_auth_credentials.txt
+  cf_dns_api_token:
+    file: ./secrets/cf_dns_api_token.txt
+  traefik_forward_auth:
+    file: ./secrets/traefik_forward_auth.txt
