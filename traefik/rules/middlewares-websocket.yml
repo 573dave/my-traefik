@@ -1,0 +1,9 @@
+http:
+  middlewares:
+    middlewares-websocket:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          Connection: "Upgrade"
+          Upgrade: "websocket"
