@@ -27,7 +27,7 @@ A secure, production-ready Docker stack featuring Traefik 3.3 as reverse proxy w
 git clone https://github.com/573dave/my-traefik .
 ```
 
-2. Create required directories:
+2. Change acme.json permissions:
 ```bash
 chmod 600 traefik/acme.json
 ```
